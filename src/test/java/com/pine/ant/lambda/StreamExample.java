@@ -2,8 +2,10 @@ package com.pine.ant.lambda;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -101,9 +103,12 @@ public class StreamExample {
                                .reduce(0, operator);
         System.out.println("Total age is "+totalAge);
         
+        System.out.println("begin to use own map");
+        List<String> names = streamExample.owmMap(students, student -> student.name);
+        names.forEach(name -> System.out.println(name));
         //****以后所有的操作对list反复处理并不影响原先的list，启示就是是否一定需要对外暴露List接口
         //****使用Stream可以很好的封装内部实现的数据结构
-        //****以上所有操作均存在链式操作的现象
+        //****以上所有操作均存在链式操作的现象，对操作行为进行了封装
     }
     
     private List<Student> prepareStudentLit () {
@@ -171,4 +176,29 @@ public class StreamExample {
                        .filter(s -> s.startsWith("j"))
                        .collect(Collectors.toList());
     }
+    
+    /**
+     * 自己实现的map，内部利用的是BiFunction 和 BinaryOperator
+     * @param students
+     * @param function
+     * @return
+     */
+    private <R> List<R> owmMap (List<Student> students, Function<Student,R> function) {
+        
+        //前两个表示函数的参数类型，最后表示返回类型
+        BiFunction<List, Student, List> biFunction = (list1, student) -> {
+            list1.add(function.apply(student));
+            return list1;
+        };
+        
+        BinaryOperator<List> addOperator  = (list1, list2) -> {
+            list1.addAll(list2);
+            return list1;
+        };
+        
+        List list = students.stream().reduce(new ArrayList(), biFunction, addOperator);
+        System.out.println("student size is "+list.size());
+        return list;
+    }
+    
 }
