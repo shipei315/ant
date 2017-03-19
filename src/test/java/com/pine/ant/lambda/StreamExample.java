@@ -4,17 +4,21 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;import org.springframework.core.env.SystemEnvironmentPropertySource;
+import org.springframework.util.Assert;
 
 /**
  * 流操作示例代码
@@ -26,14 +30,34 @@ import org.apache.commons.lang3.StringUtils;import org.springframework.core.env.
 public class StreamExample {
     
     public static void main(String[] args) {
+        
+        
+        //输入是无序的，输出也就没有顺序
+        List<Integer> numbers = Arrays.asList(5, 1, 2, 3, 4);
+        Set<Integer> unordered = new HashSet<>(numbers);
+        List<Integer> newNumbers = unordered.stream().collect(Collectors.toList());
+        System.out.println("new list is ^^^");
+        newNumbers.forEach(n -> System.out.print(n +" "));
+        System.out.println("");
+        Assert.isTrue(CollectionUtils.isEqualCollection(numbers, newNumbers), "This is not equal !");
+        
         StreamExample streamExample = new StreamExample();
         List<Student> students = streamExample.prepareStudentLit();
+        
+        // 流的产生
+        IntStream.of(new int[]{1, 2, 3}).forEach(System.out::println);
+        Stream<Integer> intStream = Stream.iterate(0, n -> n + 3).limit(10);
+        intStream.skip(5). forEach(x -> System.out.print(x + " "));
+        System.out.println("limit ^^^");
+        Stream.iterate(0, n -> n + 3).limit(10). forEach(x -> System.out.print(x + " "));
         
         // 惰性求值方法，最终不产生新的集合，只是描述新的集合
         students.stream().filter(student -> {
             System.out.println(student.name);
             return student.age <= 18;
         });
+        // 采用方法引用
+        students.stream().map(Student::getName);
         
         // 及早求值方法，最终不产生新的集合，只是描述新的集合
         students.stream().filter(student -> {
@@ -132,12 +156,6 @@ public class StreamExample {
         students.add(student2);
         students.add(student3);
         return students;
-    }
-    
-    public static class Student{
-        public String name;
-        public int age;
-        public List<String> books;
     }
     
     /**
