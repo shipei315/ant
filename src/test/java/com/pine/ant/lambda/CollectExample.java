@@ -52,7 +52,7 @@ public class CollectExample {
         String allNames = students.stream().map(student -> student.name).collect(Collectors.joining(",", "{", "}"));
         System.out.println("all names are *** "+allNames);
         
-        // 这个Demo没有跑起来
+        // 这个Demo没有跑起来，运行会报错
         try{
             String s = students.stream().filter(student -> null != student.name)
                                         .map(Student::getName)
