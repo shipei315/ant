@@ -8,6 +8,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.pine.ant.lambda.customerCollector.StringCollector;
+import com.pine.ant.lambda.customerCollector.StringCombiner;
 
 public class CollectExample {
     
@@ -47,21 +48,27 @@ public class CollectExample {
             val.stream().forEach(temp -> System.out.println("key is "+key+" val is "+temp));
         });
         
-        // 这个Demo没有跑起来
-        try{
-            String s = students.stream().filter(student -> null != student.name).map(Student::getName).collect(new StringCollector()).toString();
-            System.out.println("customer collector res is "+ s);
-        } catch(Exception e) {
-            e.printStackTrace();
-        }
-        
-        
         // 数据分组，调用join方法
         String allNames = students.stream().map(student -> student.name).collect(Collectors.joining(",", "{", "}"));
         System.out.println("all names are *** "+allNames);
         
+        // 这个Demo没有跑起来
+        try{
+            String s = students.stream().filter(student -> null != student.name)
+                                        .map(Student::getName)
+                                        .collect(new StringCollector())
+                                        .toString();
+            
+            
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
         
-        
-        
+        //这个实现了
+        String s1 = students.stream().filter(student -> null != student.name)
+                .map(Student::getName)
+                .collect(StringCombiner::new, StringCombiner::add,StringCombiner::merge)
+                .sb.toString();
+        System.out.println("customer collector res is "+ s1);
     }
 }
