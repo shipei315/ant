@@ -15,3 +15,172 @@
 如果一个方法中有充分的语义原因和某个概念相关，那么就应该将该方法和相关类和接口组织在一起。而不是在另外一个单独的工具类中。
 这样有助于更好的组织代码，更好的查阅和使用。
 如Stream中产生流的方法。
+
+1：Lambda 表达式的几种基本样式示例
+     //不需要使用参数的lambda表达式
+     Runnable noArguments = () -> System.out.println("no need to use arguments");
+     new Thread(noArguments).start();
+     
+     //使用一个参数的lambda表达式
+     ActionListener listener = event -> System.out.println("button clicked");
+     
+     //使用两个参数的lambda表达式
+     BinaryOperator<Integer> add = (x,y) -> x+y;
+     //调用传入的lambda表达式
+     add.apply(10, 20);
+     
+     //lambda表达式中参数中带有显示的类型
+     BinaryOperator<Integer> delete = (Integer x,Integer y) -> x+y;
+     //调用传入的lambda表达式
+     delete.apply(10, 20);
+     
+     // 使用代码块的lambda表达式
+     Runnable block = () -> {
+         System.out.println("This is a block thread!");
+     };
+     new Thread(block).start();
+	 
+2：java 8 提供的基本的函数式接口
+    // Predict 类
+    Predicate<String> predict = s -> s.length() > 10;
+    System.out.println(predict.test("10"));
+    
+    // Consumer 类
+    Consumer<String> consumer = s -> System.out.println(s);
+    consumer.accept("100");
+    
+    // Function 类
+    Function<String, Integer> function = x -> Integer.valueOf(x);
+    System.out.println(function.apply("1000"));
+    
+    // Supplier类 工厂方法
+    Supplier<FunctionalExample> functionalExample = ()->new FunctionalExample("supplier");
+    functionalExample.get();
+    
+    // BinaryOperator方法
+    BinaryOperator<String> binaryoperator = (s1,s2) -> s1+s2;
+    System.out.println(binaryoperator.apply("s1", "s2"));
+    
+    // 一元操作类
+    UnaryOperator<String> unaryOperator = s -> s+s;
+    System.out.println(unaryOperator.apply("unaryOperator"));
+	
+3：Java 8 集合框架的基本用法
+    // Collect 转化为其他集合
+    students.get(0).prices.stream().collect(Collectors.toCollection(TreeSet::new));
+    Student youngest = students.stream().min(Comparator.comparing(student -> student.age)).get();
+    System.out.println(youngest.name);
+    //求取平均值
+    double avgDouble = students.stream().collect(Collectors.averagingInt(student -> student.age));
+    System.out.println(avgDouble);
+    
+    //数据分组，partitioningBy传入一个Predicate函数接口的实现
+    Map<Boolean,List<Student>> res = students.stream().collect(Collectors.partitioningBy(student -> student.name.startsWith("t")));
+    
+    //更加自然的分组方式， groupingBy传入一个Function函数接口即可
+    Map<String,List<Student>> res2 = students.stream().collect(Collectors.groupingBy(student -> student.name));
+    
+    // 分组的统计方式上进行修改
+    Map<String,Long> res3 = students.stream().collect(Collectors.groupingBy(student -> student.name, Collectors.counting()));
+    res3.forEach((key, val) -> {
+        System.out.println("key is "+key+" val is "+val);
+    });
+    
+    //基于分组的统计，将分组结果记录到对应的Key上
+    Function<Student,String> function = student -> {
+        if(student.age <= 18){
+            return "young";
+        }else {
+            return "adult";
+        }
+    };
+    Map<String,List<String>> res4 = students.stream().collect(Collectors.groupingBy(function, Collectors.mapping(Student::getName,Collectors.toList())));
+    res4.forEach((key, val) -> {
+        val.stream().forEach(temp -> System.out.println("key is "+key+" val is "+temp));
+    });
+    
+    // 数据分组，调用join方法
+    String allNames = students.stream().map(student -> student.name).collect(Collectors.joining(",", "{", "}"));
+    System.out.println("all names are *** "+allNames);
+	
+4：Java 8 流（Stream类基本用法）
+   // 流的产生
+   IntStream.of(new int[]{1, 2, 3}).forEach(System.out::println);
+   Stream<Integer> intStream = Stream.iterate(0, n -> n + 3).limit(10);
+   intStream.skip(5). forEach(x -> System.out.print(x + " "));
+   System.out.println("limit ^^^");
+   Stream.iterate(0, n -> n + 3).limit(10). forEach(x -> System.out.print(x + " "));
+   
+   // 惰性求值方法，最终不产生新的集合，只是描述新的集合
+   students.stream().filter(student -> {
+       System.out.println(student.name);
+       return student.age <= 18;
+   });
+	
+	// 及早求值方法产生新的集合
+   students.stream().filter(student -> {
+       System.out.println(student.name);
+       return student.age <= 18;
+   }).count();
+	
+	// 常见操作之collect
+   students.stream().filter(student -> {
+       System.out.println(student.name);
+       return student.age <= 18;
+   }).collect(Collectors.toList());
+	
+	// 常见操作之map 将流中的值转换为另外一个对象，该函数的参数类型是Function
+   List<Integer> nameSize = students.stream().filter(student -> StringUtils.isNotBlank(student.name))
+                                    .map(student -> student.name.length())
+                                    .collect(Collectors.toList());
+   nameSize.stream().forEach(i -> System.out.println(i));
+   
+   // 将函数单独定义出来传递给map
+   Function<Student, String> function = student -> student.name.toUpperCase();
+   List<String> nameSize2 = students.stream().filter(student -> StringUtils.isNotBlank(student.name))
+                                     .map(function).collect(Collectors.toList());
+   nameSize2.stream().forEach(s -> System.out.println(s));
+   
+   // 常见操作之filter,将函数单独定义出来传递给filter
+   Predicate<Student> predict = student -> student.name.length()> 3;
+   List<String> name3 = students.stream().filter(predict)
+           .map(function).collect(Collectors.toList());
+   name3.stream().forEach(s -> System.out.println(s));
+   
+   // 常见类型之flatMap，针对流中的每一个对象转化为一个新的流，全局再合并成一个流
+   List<String> chars = students.stream().flatMap(student -> Arrays.asList(student.name.toCharArray()).stream())
+                              .map(c -> new String(c)).collect(Collectors.toList());
+   chars.forEach(c -> System.out.println(c));
+   
+   // 将flatMap转为函数单独提取出来
+   System.out.println("FlatMap function ……");
+   Function<Student,Stream<char[]>> flapFunction = student -> Arrays.asList(student.name.toCharArray()).stream();
+   List<String> chars2 = students.stream().flatMap(flapFunction)
+           .map(c -> new String(c)).collect(Collectors.toList());
+   chars2.forEach(c -> System.out.println(c));
+   
+   // 常见类型之min,取出流中最小的值
+   System.out.println("min ……");
+   Student youngest = students.stream().min(Comparator.comparing(student -> student.age)).get();
+   System.out.println(youngest.name);
+   
+   // 常见类型之max,同时将Comparator以函数的形式单独提取出来
+   // comparing方法接受一个函数返回另外一个函数
+   System.out.println("max ……");
+   Comparator<Student> comparator = Comparator.comparing(student -> student.age);
+   Student oldest = students.stream().max(comparator).get();
+   System.out.println(oldest.name);
+   
+   // 常见类型之max,同时将Comparator以函数的形式单独提取出来
+   // 此时提取不再使用Comparator.comparing方法构造
+   System.out.println("max with comparator function ……");
+   Comparator<Student> ageComparator = (student1, student2) -> student1.age - student2.age;
+   Student oldest2 = students.stream().max(ageComparator).get();
+   System.out.println(oldest2.name);
+   
+   // 常见类型操作之reduce
+   BinaryOperator<Integer> operator  = (age1, age2) -> age1+age2;
+   int totalAge = students.stream()
+                          .map(student -> student.age)
+                          .reduce(0, operator);
+   System.out.println("Total age is "+totalAge);
