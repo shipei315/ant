@@ -1,0 +1,227 @@
+覆盖知识点：ODPS 客户端操作, ODPS 表的创建，删除，修改，和查询。D2的基本使用。ODPS JAVA API 简介。
+ 
+ 1: 建表语句
+ create table if not exists zlk_tunnel_sample(name string,age   string) partitioned by (day string);
+ 
+ 2：新建分区
+ alter table zlk_tunnel_sample add if not exists partition (day=20170320);
+ 
+ 2：上传数据(只能上传到指定表或者特定分区，存在分区的时候不指定的话将报错)，写数据的行为是追加
+   ` tunnel的方式上传数据适合与批量上传的方式，一般数据大小至少为百兆。
+ tunnel upload D:\odps_clt_release_64\uploadData.txt zlk_tunnel_sample/day=20170320;
+ insert overwrite table zlk_tunnel_sample partition (day='20170322') select name,age from zlk_tunnel_sample where day=20170320 ;`
+ 
+ 3：查询语句
+ `select * from zlk_tunnel_sample where day=20170320;
+ select distinct day  from zlk_tunnel_sample where day=20170320;
+ select count(distinct age) from zlk_tunnel_sample;
+ select age,count(1) from zlk_tunnel_sample group by age;
+ select name from  zlk_tunnel_sample where day=20170320 union all select name from   zlk_tunnel_sample where day=20170321;（不支持union）`
+ 
+ 
+ 
+ 4：其他DDL语句
+ alter table zlk_tunnel_sample add if not exists partition (day=20170320);
+ alter table  zlk_tunnel_sample drop partition(day=20170320) PURGE;
+ 
+ 5：D2平台操作简介：https://lark.alipay.com/zlk/mole/yx9g6w
+ 
+ 6：ODPS JAVA API 常用对象简介
+    Account 对象 阿里云账户信息
+	Odps 对象，利用账户信息连接到指定Project
+	TableTunnel 对象，利用Odps对象生成具体的表对象
+	PartitionSpec 对象，分区信息构造对象，传入形如"day=20170320"的字符串
+	DownloadSession 对象，利用ODPS tunnel下载数据的类
+	UploadSession 对象，利用ODPS tunnel上传数据的类
+	SQLTask 对象，结合Odps对象和具体的SQL语句执行具体的SQL操作
+	
+7：代码Sample
+
+	package com.autovavi.zlk;
+	import java.io.IOException;
+	import java.util.Date;
+	import com.aliyun.odps.Column;
+	import com.aliyun.odps.Odps;
+	import com.aliyun.odps.PartitionSpec;
+	import com.aliyun.odps.TableSchema;
+	import com.aliyun.odps.account.Account;
+	import com.aliyun.odps.account.AliyunAccount;
+	import com.aliyun.odps.data.Record;
+	import com.aliyun.odps.data.RecordWriter;
+	import com.aliyun.odps.tunnel.TableTunnel;
+	import com.aliyun.odps.tunnel.TunnelException;
+	import com.aliyun.odps.tunnel.TableTunnel.UploadSession;
+
+	public class ZlkUploadSample {
+		private static String accessId = "******";
+		private static String accessKey = "******";
+		private static String tunnelUrl = "http://dt-corp.odps.aliyun-inc.com";
+
+		private static String odpsUrl = "http://service-corp.odps.aliyun-inc.com/api";
+
+		private static String project = "zlk_automation_anlys_dev";
+		private static String table = "zlk_tunnel_sample";
+		private static String partition = "day=20170320";
+		
+		 /**
+		 * 带有分页查询效果的demo
+		 */
+		private void testDownload () {
+			Account account = new AliyunAccount(accessId, accessKey);
+			Odps odps = new Odps(account);
+			odps.setEndpoint(odpsUrl);
+			odps.setDefaultProject(project);
+			RecordReader recordReader = null;
+			try {
+				TableTunnel tunnel = new TableTunnel(odps);
+				tunnel.setEndpoint(tunnelUrl);
+				PartitionSpec partitionSpec = new PartitionSpec(partition);
+				DownloadSession downloadSession = tunnel.createDownloadSession(project, table, partitionSpec);
+				DownloadSession session = tunnel.createDownloadSession(project, table);
+				long count = downloadSession.getRecordCount();
+				System.out.println("odps cal total size is"+count);
+				int totalCount=0;
+
+				if (count != 0) {
+					long modRes=count%pageSize;
+					long batchSize=modRes==0?count/pageSize:count/pageSize+1;
+					for(int i=0;i<batchSize;i++){
+						//recordReader = downloadSession.openRecordReader(10000, 10000);
+						recordReader = downloadSession.openRecordReader(pageSize*i, pageSize);
+						Record record;
+						while ((record = recordReader.read()) != null) {
+							//String temp = getString(record, downloadSession.getSchema());
+							totalCount++;
+
+						}
+						System.out.println("batchSize is "+i+" totalCount is "+totalCount);
+					}
+				}
+				if(totalCount==count){
+					System.out.println("res is right!,totalCount is "+totalCount);
+				}else{
+					System.err.println("res is not right!");
+				}
+			}catch(Exception e){
+				e.printStackTrace();
+				System.err.println("error has happened!");
+			}finally {
+				if (recordReader != null) {
+									try {
+											recordReader.close();
+									} catch (IOException e) {
+										e.printStackTrace();
+											System.err.println("odps_record_reader close error,");
+									}
+							}
+			}
+		}
+		
+		/**
+		* ODPS SQL demo
+		* /
+		public void testSqlTask() {
+			Instance i;
+			try {
+				i = SQLTask.run(odps, sql);
+				i.waitForSuccess();
+				List<Record> records = SQLTask.getResult(i);
+				for (Record r : records) {
+					for (int j = 0; j < r.getColumnCount(); j++) {
+						System.out.print(r.get(j).toString() + "  ");
+					}
+					System.out.println();
+				}
+			} catch (OdpsException e) {
+				e.printStackTrace();
+			}
+	   }
+    
+		/**
+		* ODPS UPLOAD demo
+		* /
+		public static void main(String args[]) throws Exception {
+			Account account = new AliyunAccount(accessId, accessKey);
+			Odps odps = new Odps(account);
+			odps.setEndpoint(odpsUrl);
+			odps.setDefaultProject(project);
+			try {
+				TableTunnel tunnel = new TableTunnel(odps);
+				tunnel.setEndpoint(tunnelUrl);
+				PartitionSpec partitionSpec = new PartitionSpec(partition);
+				UploadSession uploadSession = tunnel.createUploadSession(project, table, partitionSpec);
+
+				System.out.println("Session Status is : " + uploadSession.getStatus().toString());
+
+				TableSchema schema = uploadSession.getSchema();
+				RecordWriter recordWriter = uploadSession.openRecordWriter(0);
+				Record record = uploadSession.newRecord();
+				for (int i = 0; i < schema.getColumns().size(); i++) {
+					Column column = schema.getColumn(i);
+					switch (column.getType()) {
+					case BIGINT:
+						record.setBigint(i, 1L);
+						break;
+					case BOOLEAN:
+						record.setBoolean(i, true);
+						break;
+					case DATETIME:
+						record.setDatetime(i, new Date());
+						break;
+					case DOUBLE:
+						record.setDouble(i, 0.0);
+						break;
+					case STRING:
+						record.setString(i, "sample3");
+						break;
+					default:
+						throw new RuntimeException("Unknown column type: " + column.getType());
+					}
+				}
+				for (int i = 0; i < 10; i++) {
+					recordWriter.write(record);
+				}
+				recordWriter.close();
+				// 一个Session只允许commit一次，否则会报错
+				// uploadSession.commit(new Long[] { 0l });
+
+				RecordWriter recordWriter2 = uploadSession.openRecordWriter(1);
+				Record record2 = uploadSession.newRecord();
+				for (int i = 0; i < schema.getColumns().size(); i++) {
+					Column column = schema.getColumn(i);
+					switch (column.getType()) {
+					case BIGINT:
+						record2.setBigint(i, 1L);
+						break;
+					case BOOLEAN:
+						record2.setBoolean(i, true);
+						break;
+					case DATETIME:
+						record2.setDatetime(i, new Date());
+						break;
+					case DOUBLE:
+						record2.setDouble(i, 0.0);
+						break;
+					case STRING:
+						record2.setString(i, "sample6");
+						break;
+					default:
+						throw new RuntimeException("Unknown column type: " + column.getType());
+					}
+				}
+
+				for (int i = 0; i < 10; i++) {
+					recordWriter2.write(record2);
+				}
+				recordWriter2.close();
+
+				uploadSession.commit(new Long[] {0L,1L });
+				System.out.println("upload success!");
+
+			} catch (TunnelException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
