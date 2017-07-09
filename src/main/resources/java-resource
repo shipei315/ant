@@ -1,0 +1,26 @@
+BootstrapClassLoader System.getProperty("sun.boot.class.path")
+
+ExtClassLoader       System.getProperty("java.ext.dirs")
+
+AppClassLoader       java.class.path
+路径列表中包含了ext扩展jar目录。
+应用目录的class目录被包含D:\alibaba\content-alibaba\tinker\target\classes;
+maven目录被包含
+idea的一个文件idea_rt.jar被包含(这是因为idea启动java程序时默认会在-classpath中带上这个jar)
+
+getClass().getClassLoader().getResource("data/resource.xml")
+getClass().getClassLoader()：一般来说我们在应用里边使用的话获得的ClassLoader都是AppClassLoader或者用户自定义ClassLoader。
+getResource依然是一个双亲委派的资源寻找过程, 假如一个文件在classpath下,基本的寻找过程如下:
+AppClassLoader --> ExtClassLoader --> BootstrapClassLoader --> ExtClassLoader --> AppClassLoader
+
+getResource方法不支持操作系统绝对路径。资源的寻找都是基于某个绝对的地址开始相对的查找。
+资源的查找也是一个双亲委派的查找过程
+BootstrapClassLoader的查找路径来自于系统的java.class.path属性。
+ExtClassLoader的查找路径来自于系统的java.ext.dirs属性。
+AppClassLoader的查找路径来自于系统的java.class.path属性。
+BootstrapClassLoader的meta-index的方案值得学习。
+可以利用JarFile和JarEntry来获取某个文件是否在jar包中。注意，参数路径要是相对的。
+getClass().getClassLoader().getResource("data/resource.xml")从classpath遍历
+getClass().getClassLoader().getResource("/data/resource.xml")此路不通
+getClass().getResource("data/resource.xml")是以当前类为基准做相对路径查找
+getClass().getResource("/data/resource.xml")功能等同于第八条。
